@@ -1,0 +1,38 @@
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarcloud:
+    name: SAST - SonarCloud
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Important pour l'analyse Sonar
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Généré auto par GitHub
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}    # À récupérer sur SonarCloud
+
+  trivy:
+    name: Container Scan - Trivy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Docker Image (Fake build for scanning)
+        run: docker build -t my-vulnerable-app .
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'my-vulnerable-app'
+          format: 'table'
+          exit-code: '1' # Fait échouer le job si faille critique trouvée
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
